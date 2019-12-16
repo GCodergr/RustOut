@@ -1,0 +1,16 @@
+[package]
+name = "rust_out"
+version = "0.0.1"
+authors = ["GCodergr"]
+edition = "2018"
+build = "build.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[dependencies.sdl2]
+version = "0.32.2"
+default-features = false
+features = ["image", "ttf"]
+# features = ["ttf","image","gfx","mixer"]  # Full feature support
