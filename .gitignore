@@ -4,7 +4,7 @@
 Cargo.lock
 
 # External Libraries 
-*.dll
+/*.dll
 
 # Rider       
 **/.idea/

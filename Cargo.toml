@@ -1,6 +1,6 @@
 [package]
 name = "rust_out"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["GCodergr"]
 edition = "2018"
 build = "build.rs"

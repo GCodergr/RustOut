@@ -1,6 +1,6 @@
 # RustOut
 
-A breakout clone writen in rust.
+A breakout clone written in rust.
 
 ### Installation
 
