@@ -1,6 +1,6 @@
 [package]
 name = "rust_out"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["GCodergr"]
 edition = "2018"
 build = "build.rs"
@@ -13,4 +13,3 @@ build = "build.rs"
 version = "0.32.2"
 default-features = false
 features = ["image", "ttf"]
-# features = ["ttf","image","gfx","mixer"]  # Full feature support
