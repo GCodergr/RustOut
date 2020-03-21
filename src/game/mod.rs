@@ -4,8 +4,8 @@ use sdl2::pixels::Color;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::rect::Rect;
-use sdl2::render::{TextureCreator};
-use sdl2::image::{LoadTexture};
+use sdl2::render::TextureCreator;
+use sdl2::image::LoadTexture;
 use sdl2::render::TextureQuery;
 
 use std::time::Duration;
@@ -14,7 +14,7 @@ mod physics;
 use crate::game::physics::{check_for_collisions, resolve_ball_wall_collisions, resolve_ball_paddle_collisions, resolve_ball_brick_collisions};
 
 mod font_utilities;
-use crate::game::font_utilities::{ get_top_right_rect};
+use crate::game::font_utilities::get_top_right_rect;
 
 use self::sdl2::rect::Point;
 
@@ -23,11 +23,11 @@ const WINDOW_HEIGHT: u32 = 600;
 
 const STARTING_PLAYER_LIVES: i32 = 3;
 
-const BALL_START_POSITION_X : i32 = 50;
-const BALL_START_POSITION_Y : i32 = 450;
+const BALL_START_POSITION_X: i32 = 50;
+const BALL_START_POSITION_Y: i32 = 450;
 
-const BALL_START_SPEED_X : i32 = 4;
-const BALL_START_SPEED_Y : i32 = -4;
+const BALL_START_SPEED_X: i32 = 4;
+const BALL_START_SPEED_Y: i32 = -4;
 
 const BRICK_ROW_COUNT: u32 = 4;
 const BRICK_COLUMN_COUNT: u32 = 8;
@@ -39,13 +39,19 @@ pub struct Brick {
 }
 
 // Default Trait for Brick
-impl Default for Brick{
-    fn default() -> Brick{
-        Brick{
+impl Default for Brick {
+    fn default() -> Brick {
+        Brick {
             rect: Rect::new(0, 0, 0, 0),
-            active: true // Bricks are active by default
+            active: true, // Bricks are active by default
         }
     }
+}
+
+#[derive(PartialEq, Eq)]
+enum GameplayState {
+    Normal,
+    BallFrozen
 }
 
 pub fn run() -> Result<(), String> {
@@ -86,31 +92,33 @@ pub fn run() -> Result<(), String> {
     let mut ball_rect = Rect::new(BALL_START_POSITION_X, BALL_START_POSITION_Y, 8, 8);
     let mut ball_speed = Point::new(BALL_START_SPEED_X, BALL_START_SPEED_Y);
 
-    let mut bricks : [[Brick; BRICK_COLUMN_COUNT as usize] ; BRICK_ROW_COUNT as usize] =
-        [[Brick::default(); BRICK_COLUMN_COUNT as usize] ; BRICK_ROW_COUNT as usize]; // Brick is initialized with default values
-    let mut brick_count : i32 = (BRICK_ROW_COUNT * BRICK_COLUMN_COUNT) as i32;
+    let mut bricks: [[Brick; BRICK_COLUMN_COUNT as usize]; BRICK_ROW_COUNT as usize] =
+        [[Brick::default(); BRICK_COLUMN_COUNT as usize]; BRICK_ROW_COUNT as usize]; // Brick is initialized with default values
+    let mut brick_count: i32 = (BRICK_ROW_COUNT * BRICK_COLUMN_COUNT) as i32;
 
-    const BRICK_BOARD_START_X: usize = 180;
+    const BRICK_BOARD_START_X: usize = 150;
     const BRICK_BOARD_START_Y: usize = 50;
 
-    const BRICK_OFFSET_X: usize = 32;
+    const BRICK_OFFSET_X: usize = 28;
     const BRICK_OFFSET_Y: usize = 12;
 
-    const BRICK_WIDTH: usize = 32;
-    const BRICK_HEIGHT: usize = 12;
+    const BRICK_WIDTH: usize = 40;
+    const BRICK_HEIGHT: usize = 16;
 
-    for row in 0..BRICK_ROW_COUNT  {
-        for column in 0..BRICK_COLUMN_COUNT  {
+    for row in 0..BRICK_ROW_COUNT {
+        for column in 0..BRICK_COLUMN_COUNT {
             bricks[row as usize][column as usize].rect = Rect::new((BRICK_BOARD_START_X + (column as usize * (BRICK_WIDTH + BRICK_OFFSET_X))) as i32,
-                                            (BRICK_BOARD_START_Y + (row as usize * (BRICK_HEIGHT + BRICK_OFFSET_Y)) )as i32,
-                                            BRICK_WIDTH as u32,
-                                            BRICK_HEIGHT as u32);
+                                                                   (BRICK_BOARD_START_Y + (row as usize * (BRICK_HEIGHT + BRICK_OFFSET_Y))) as i32,
+                                                                   BRICK_WIDTH as u32,
+                                                                   BRICK_HEIGHT as u32);
 
             bricks[row as usize][column as usize].active = true;
         }
     }
 
     let lives_label_text = "Lives: ";
+
+    let mut current_game_state = GameplayState::Normal;
 
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -134,26 +142,29 @@ pub fn run() -> Result<(), String> {
         //
         // Update Logic
         //
-        update_ball_speed(&mut ball_rect, ball_speed);
-        resolve_ball_wall_collisions(&mut ball_rect, &mut ball_speed, &mut player_lives);
-        resolve_ball_paddle_collisions(ball_rect, &mut ball_speed, paddle_rect);
 
-        for row in 0..BRICK_ROW_COUNT {
-            for column in 0..BRICK_COLUMN_COUNT {
-                resolve_ball_brick_collisions(ball_rect, &mut ball_speed, &mut bricks[row as usize][column as usize], &mut brick_count);
-            }
-        }
-
-        if check_for_victory_conditions(player_lives, brick_count) {
-            restart_player_and_ball(&mut ball_rect, &mut ball_speed, &mut player_lives);
+        if current_game_state == GameplayState::Normal {
+            update_ball_speed(&mut ball_rect, ball_speed);
+            resolve_ball_wall_collisions(&mut ball_rect, &mut ball_speed, &mut player_lives);
+            resolve_ball_paddle_collisions(ball_rect, &mut ball_speed, paddle_rect);
 
             for row in 0..BRICK_ROW_COUNT {
                 for column in 0..BRICK_COLUMN_COUNT {
-                    bricks[row as usize][column as usize].active = true;
+                    resolve_ball_brick_collisions(ball_rect, &mut ball_speed, &mut bricks[row as usize][column as usize], &mut brick_count);
                 }
             }
 
-            brick_count = (BRICK_ROW_COUNT * BRICK_COLUMN_COUNT) as i32;
+            if check_for_victory_conditions(player_lives, brick_count) {
+                restart_player_and_ball(&mut ball_rect, &mut ball_speed, &mut player_lives);
+
+                for row in 0..BRICK_ROW_COUNT {
+                    for column in 0..BRICK_COLUMN_COUNT {
+                        bricks[row as usize][column as usize].active = true;
+                    }
+                }
+
+                brick_count = (BRICK_ROW_COUNT * BRICK_COLUMN_COUNT) as i32;
+            }
         }
 
         //
@@ -175,7 +186,7 @@ pub fn run() -> Result<(), String> {
                     ball_rect)
             .expect("Couldn't copy texture into windows");
 
-        for row in 0..BRICK_ROW_COUNT  {
+        for row in 0..BRICK_ROW_COUNT {
             for column in 0..BRICK_COLUMN_COUNT {
                 if bricks[row as usize][column as usize].active {
                     canvas.copy(&brick_texture,
@@ -214,7 +225,7 @@ fn update_ball_speed(rect: &mut Rect, speed: Point) {
     rect.set_y(rect.y() + speed.y());
 }
 
-fn check_for_victory_conditions(player_lives: i32, brick_count: i32) -> bool{
+fn check_for_victory_conditions(player_lives: i32, brick_count: i32) -> bool {
     let mut needs_restart = false;
 
     if player_lives == 0 {
@@ -229,13 +240,12 @@ fn check_for_victory_conditions(player_lives: i32, brick_count: i32) -> bool{
     needs_restart
 }
 
-fn restart_player_and_ball(ball_rect: &mut Rect, ball_speed: &mut Point, player_lives: &mut i32){
-
+fn restart_player_and_ball(ball_rect: &mut Rect, ball_speed: &mut Point, player_lives: &mut i32) {
     *player_lives = STARTING_PLAYER_LIVES;
     reset_ball(ball_rect, ball_speed);
 }
 
-pub fn reset_ball(ball_rect: &mut Rect, ball_speed: &mut Point){
+pub fn reset_ball(ball_rect: &mut Rect, ball_speed: &mut Point) {
     ball_rect.x = BALL_START_POSITION_X;
     ball_rect.y = BALL_START_POSITION_Y;
 
