@@ -31,6 +31,17 @@ pub fn get_top_right_rect(rect_width: u32, rect_height: u32, cons_width: u32, co
     rect!(cx, cy, w, h)
 }
 
+pub fn get_top_left_rect(rect_width: u32, rect_height: u32, cons_width: u32, cons_height: u32) -> Rect{
+    let wr = rect_width as f32 / cons_width as f32;
+    let hr = rect_height as f32 / cons_height as f32;
+
+    let (w, h) = calculate_font_scale(rect_width, rect_height, cons_width, cons_height, wr, hr);
+
+    let cx = 0;
+    let cy = 0;
+    rect!(cx, cy, w, h)
+}
+
 fn calculate_font_scale(rect_width: u32, rect_height: u32, cons_width: u32, cons_height: u32, wr: f32, hr: f32) -> (i32, i32) {
     let (w, h) = if wr > 1f32 || hr > 1f32 {
         if wr > hr {

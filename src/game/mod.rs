@@ -14,7 +14,7 @@ mod physics;
 use crate::game::physics::{check_for_collisions, resolve_ball_wall_collisions, resolve_ball_paddle_collisions, resolve_ball_brick_collisions};
 
 mod font_utilities;
-use crate::game::font_utilities::get_top_right_rect;
+use crate::game::font_utilities::{get_top_right_rect, get_top_left_rect};
 
 use self::sdl2::rect::Point;
 
@@ -117,6 +117,9 @@ pub fn run() -> Result<(), String> {
     }
 
     let lives_label_text = "Lives: ";
+    let score_label_text = "Score: ";
+    let mut bricks_destroyed: i32 = 0;
+    const SCORE_MULTIPLIER : i32 = 10;
 
     let mut current_game_state = GameplayState::Normal;
 
@@ -150,12 +153,13 @@ pub fn run() -> Result<(), String> {
 
             for row in 0..BRICK_ROW_COUNT {
                 for column in 0..BRICK_COLUMN_COUNT {
-                    resolve_ball_brick_collisions(ball_rect, &mut ball_speed, &mut bricks[row as usize][column as usize], &mut brick_count);
+                    resolve_ball_brick_collisions(ball_rect, &mut ball_speed, &mut bricks[row as usize][column as usize],
+                                                  &mut brick_count, &mut bricks_destroyed);
                 }
             }
 
             if check_for_victory_conditions(player_lives, brick_count) {
-                restart_player_and_ball(&mut ball_rect, &mut ball_speed, &mut player_lives);
+                restart_game(&mut ball_rect, &mut ball_speed, &mut player_lives, &mut bricks_destroyed);
 
                 for row in 0..BRICK_ROW_COUNT {
                     for column in 0..BRICK_COLUMN_COUNT {
@@ -199,16 +203,36 @@ pub fn run() -> Result<(), String> {
 
         let lives_text = lives_label_text.to_owned() + &player_lives.to_string();
 
-        let surface = font.render(&lives_text).blended(Color::RGBA(100, 149, 237, 255)).map_err(|e| e.to_string())?;
-        let font_texture = texture_creator.create_texture_from_surface(&surface)
+        let lives_text_surface = font.render(&lives_text).blended(Color::RGBA(100, 149, 237, 255))
+            .map_err(|e| e.to_string())?;
+        let lives_font_texture = texture_creator.create_texture_from_surface(&lives_text_surface)
             .map_err(|e| e.to_string())?;
 
-        let TextureQuery { width, height, .. } = font_texture.query();
+        let TextureQuery { width: lives_text_width, height: lives_text_height, .. } = lives_font_texture.query();
 
-        let padding = 64;
-        let target = get_top_right_rect(width, height, WINDOW_WIDTH - padding, WINDOW_HEIGHT - padding);
+        let lives_text_padding = 64;
+        let lives_text_target = get_top_right_rect(lives_text_width,
+                                                        lives_text_height,
+                                                        WINDOW_WIDTH - lives_text_padding,
+                                                        WINDOW_HEIGHT - lives_text_padding);
 
-        canvas.copy(&font_texture, None, Some(target))?;
+        canvas.copy(&lives_font_texture, None, Some(lives_text_target))?;
+
+        let mut score = bricks_destroyed * SCORE_MULTIPLIER;
+        let score_text = score_label_text.to_owned() + &score.to_string();
+        let score_surface = font.render(&score_text).blended(Color::RGBA(100, 149, 237, 255)).map_err(|e| e.to_string())?;
+        let score_font_texture = texture_creator.create_texture_from_surface(&score_surface)
+            .map_err(|e| e.to_string())?;
+
+        let TextureQuery { width: score_text_width, height: score_text_height, .. } = score_font_texture.query();
+
+        let score_text_padding = 64;
+        let score_text_target = get_top_left_rect(score_text_width,
+                                                        score_text_height,
+                                                        WINDOW_WIDTH - score_text_padding,
+                                                        WINDOW_HEIGHT - score_text_padding);
+
+        canvas.copy(&score_font_texture, None, Some(score_text_target))?;
 
         // We update window's display
         canvas.present();
@@ -240,8 +264,9 @@ fn check_for_victory_conditions(player_lives: i32, brick_count: i32) -> bool {
     needs_restart
 }
 
-fn restart_player_and_ball(ball_rect: &mut Rect, ball_speed: &mut Point, player_lives: &mut i32) {
+fn restart_game(ball_rect: &mut Rect, ball_speed: &mut Point, player_lives: &mut i32, bricks_destroyed: &mut i32) {
     *player_lives = STARTING_PLAYER_LIVES;
+    *bricks_destroyed = 0;
     reset_ball(ball_rect, ball_speed);
 }
 

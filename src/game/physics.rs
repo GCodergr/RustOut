@@ -42,7 +42,7 @@ pub fn resolve_ball_paddle_collisions(ball_rect: Rect, ball_speed: &mut Point, p
     }
 }
 
-pub fn resolve_ball_brick_collisions(ball_rect: Rect, ball_speed: &mut Point, brick: &mut Brick, brick_count: &mut i32){
+pub fn resolve_ball_brick_collisions(ball_rect: Rect, ball_speed: &mut Point, brick: &mut Brick, brick_count: &mut i32, bricks_destroyed: &mut i32){
     let mut collided = false;
 
     if brick.active && ball_rect.has_intersection(brick.rect)
@@ -63,5 +63,6 @@ pub fn resolve_ball_brick_collisions(ball_rect: Rect, ball_speed: &mut Point, br
     {
         brick.active = false;
         *brick_count = *brick_count - 1;
+        *bricks_destroyed = *bricks_destroyed + 1;
     }
 }
