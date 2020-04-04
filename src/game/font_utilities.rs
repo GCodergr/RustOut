@@ -1,4 +1,4 @@
-use super::sdl2::rect::Rect;
+use sdl2::rect::Rect;
 use crate::game::{WINDOW_WIDTH, WINDOW_HEIGHT};
 
 // handle the annoying Rect i32

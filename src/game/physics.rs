@@ -1,4 +1,4 @@
-use super::sdl2::rect::{Rect, Point};
+use sdl2::rect::{Rect, Point};
 use crate::game::{WINDOW_WIDTH, WINDOW_HEIGHT, Brick, reset_ball};
 
 pub fn check_for_collisions(rect: &mut Rect) {
