@@ -11,10 +11,7 @@ use sdl2::render::TextureQuery;
 use std::time::Duration;
 
 use crate::game::physics::{check_for_collisions, resolve_ball_wall_collisions, resolve_ball_paddle_collisions, resolve_ball_brick_collisions};
-
 use crate::game::font_utilities::{get_top_right_rect, get_top_left_rect};
-
-use self::sdl2::rect::Point;
 
 pub const WINDOW_WIDTH: u32 = 800;
 pub const WINDOW_HEIGHT: u32 = 600;
@@ -24,8 +21,8 @@ const STARTING_PLAYER_LIVES: i32 = 3;
 const BALL_START_POSITION_X: i32 = 50;
 const BALL_START_POSITION_Y: i32 = 450;
 
-const BALL_START_SPEED_X: i32 = 4;
-const BALL_START_SPEED_Y: i32 = -4;
+const BALL_START_SPEED_X: f32 = 150.0;
+const BALL_START_SPEED_Y: f32 = -150.0;
 
 const BRICK_ROW_COUNT: u32 = 4;
 const BRICK_COLUMN_COUNT: u32 = 8;
@@ -33,7 +30,7 @@ const BRICK_COLUMN_COUNT: u32 = 8;
 #[derive(Copy, Clone)]
 pub struct Brick {
     pub rect: Rect,
-    pub active: bool
+    pub active: bool,
 }
 
 // Default Trait for Brick
@@ -46,10 +43,16 @@ impl Default for Brick {
     }
 }
 
+#[derive(Copy, Clone)]
+pub struct Vector2 {
+    pub x : f32,
+    pub y : f32,
+}
+
 #[derive(PartialEq, Eq)]
 enum GameplayState {
     Normal,
-    BallFrozen
+    BallFrozen,
 }
 
 pub fn run() -> Result<(), String> {
@@ -85,10 +88,12 @@ pub fn run() -> Result<(), String> {
     let mut player_lives = STARTING_PLAYER_LIVES;
 
     let mut paddle_rect = Rect::new(50, 530, 62, 12);
-    let paddle_speed_x = 12;
+    let mut paddle_position = Vector2 { x: 50.0, y : 530.0};
+    let paddle_speed_x : f32  = 600.0;
 
     let mut ball_rect = Rect::new(BALL_START_POSITION_X, BALL_START_POSITION_Y, 8, 8);
-    let mut ball_speed = Point::new(BALL_START_SPEED_X, BALL_START_SPEED_Y);
+    let mut ball_position = Vector2 { x: BALL_START_POSITION_X as f32, y : BALL_START_POSITION_Y as f32};
+    let mut ball_speed = Vector2 {x: BALL_START_SPEED_X, y: BALL_START_SPEED_Y};
 
     let mut bricks: [[Brick; BRICK_COLUMN_COUNT as usize]; BRICK_ROW_COUNT as usize] =
         [[Brick::default(); BRICK_COLUMN_COUNT as usize]; BRICK_ROW_COUNT as usize]; // Brick is initialized with default values
@@ -117,11 +122,20 @@ pub fn run() -> Result<(), String> {
     let lives_label_text = "Lives: ";
     let score_label_text = "Score: ";
     let mut bricks_destroyed: i32 = 0;
-    const SCORE_MULTIPLIER : i32 = 10;
+    const SCORE_MULTIPLIER: i32 = 10;
 
     let mut current_game_state = GameplayState::Normal;
 
+    let mut previous_time: u32;
+    let mut current_time: u32 = 0;
+    let mut delta_time: f32; // Time between the current and previous frame in seconds
+    let mut timer = sdl_context.timer()?;
+
     'running: loop {
+        previous_time = current_time;
+        current_time = timer.ticks();
+        delta_time = (current_time - previous_time) as f32 / 1000.0;
+
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. } |
@@ -129,11 +143,13 @@ pub fn run() -> Result<(), String> {
                     break 'running;
                 }
                 Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
-                    paddle_rect.set_x(paddle_rect.x() - paddle_speed_x);
+                    paddle_position.x -= paddle_speed_x * delta_time;
+                    paddle_rect.set_x(paddle_position.x as i32);
                     check_for_collisions(&mut paddle_rect);
                 }
                 Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
-                    paddle_rect.set_x(paddle_rect.x() + paddle_speed_x);
+                    paddle_position.x += paddle_speed_x * delta_time;
+                    paddle_rect.set_x(paddle_position.x as i32);
                     check_for_collisions(&mut paddle_rect);
                 }
                 _ => {}
@@ -145,7 +161,7 @@ pub fn run() -> Result<(), String> {
         //
 
         if current_game_state == GameplayState::Normal {
-            update_ball_speed(&mut ball_rect, ball_speed);
+            update_ball_position(&mut ball_rect, ball_speed, &mut ball_position, delta_time);
             resolve_ball_wall_collisions(&mut ball_rect, &mut ball_speed, &mut player_lives);
             resolve_ball_paddle_collisions(ball_rect, &mut ball_speed, paddle_rect);
 
@@ -242,9 +258,11 @@ pub fn run() -> Result<(), String> {
     Ok(())
 }
 
-fn update_ball_speed(rect: &mut Rect, speed: Point) {
-    rect.set_x(rect.x() + speed.x());
-    rect.set_y(rect.y() + speed.y());
+fn update_ball_position(rect: &mut Rect, speed: Vector2, ball_position: &mut Vector2, delta_time: f32) {
+    ball_position.x += speed.x * delta_time;
+    rect.set_x(ball_position.x as i32);
+    ball_position.y += speed.y * delta_time;
+    rect.set_y(ball_position.y as i32);
 }
 
 fn check_for_victory_conditions(player_lives: i32, brick_count: i32) -> bool {
@@ -262,13 +280,13 @@ fn check_for_victory_conditions(player_lives: i32, brick_count: i32) -> bool {
     needs_restart
 }
 
-fn restart_game(ball_rect: &mut Rect, ball_speed: &mut Point, player_lives: &mut i32, bricks_destroyed: &mut i32) {
+fn restart_game(ball_rect: &mut Rect, ball_speed: &mut Vector2, player_lives: &mut i32, bricks_destroyed: &mut i32) {
     *player_lives = STARTING_PLAYER_LIVES;
     *bricks_destroyed = 0;
     reset_ball(ball_rect, ball_speed);
 }
 
-pub fn reset_ball(ball_rect: &mut Rect, ball_speed: &mut Point) {
+pub fn reset_ball(ball_rect: &mut Rect, ball_speed: &mut Vector2) {
     ball_rect.x = BALL_START_POSITION_X;
     ball_rect.y = BALL_START_POSITION_Y;
 
